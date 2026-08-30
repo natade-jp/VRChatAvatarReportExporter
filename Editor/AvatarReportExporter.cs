@@ -15,7 +15,7 @@ namespace Natade.AvatarReport
     /// </summary>
     public static class AvatarReportExporter
     {
-        private const string ReportFormatVersion = "1.1.6";
+        private const string ReportFormatVersion = "1.2.0";
         private const float DeltaEpsilon = 0.0000001f;
 
         /// <summary>
@@ -762,15 +762,170 @@ namespace Natade.AvatarReport
 
             foreach (var component in rootObject.GetComponentsInChildren<Component>(true))
             {
-                if (component == null || component.GetType().Name != "VRCAvatarDescriptor")
+                if (component == null)
                 {
                     continue;
                 }
 
-                report.avatarDescriptors.Add(BuildVRCAvatarDescriptorReport(component, root));
+                var typeName = component.GetType().Name;
+
+                if (typeName == "VRCAvatarDescriptor")
+                {
+                    report.avatarDescriptors.Add(
+                        BuildVRCAvatarDescriptorReport(component, root));
+                }
+                else if (typeName == "VRCPhysBone")
+                {
+                    report.physBones.Add(
+                        BuildVRCPhysBoneReport(component, root));
+                }
+                else if (typeName == "VRCPhysBoneCollider")
+                {
+                    report.physBoneColliders.Add(
+                        BuildVRCPhysBoneColliderReport(component, root));
+                }
             }
 
             return report;
+        }
+
+        /// <summary>
+        /// VRC PhysBoneの主要設定を比較用形式へ変換
+        /// </summary>
+        /// <param name="component">解析対象のVRC PhysBone Component</param>
+        /// <param name="root">Hierarchy Pathの基準となるルートTransform</param>
+        /// <returns>Transform、Force、Limit、Collision、Grabなどの設定を含むPhysBone情報</returns>
+        private static VRCPhysBoneReport BuildVRCPhysBoneReport(
+            Component component,
+            Transform root)
+        {
+            var so = new SerializedObject(component);
+
+            return new VRCPhysBoneReport
+            {
+                gameObjectPath = GetHierarchyPath(component.transform, root),
+                type = component.GetType().FullName,
+
+                rootTransform = GetPropertyNode(so, root, "rootTransform"),
+                ignoreTransforms = GetPropertyNode(so, root, "ignoreTransforms"),
+                endpointPosition = GetPropertyNode(so, root, "endpointPosition"),
+                multiChildType = GetPropertyNode(so, root, "multiChildType"),
+
+                integrationType = GetPropertyNode(so, root, "integrationType"),
+                pull = GetPropertyNode(so, root, "pull"),
+                spring = GetPropertyNode(so, root, "spring"),
+                momentum = GetPropertyNode(so, root, "momentum"),
+                stiffness = GetPropertyNode(so, root, "stiffness"),
+                gravity = GetPropertyNode(so, root, "gravity"),
+                gravityFalloff = GetPropertyNode(so, root, "gravityFalloff"),
+                immobileType = GetPropertyNode(so, root, "immobileType"),
+                immobile = GetPropertyNode(so, root, "immobile"),
+
+                limitType = GetPropertyNode(so, root, "limitType"),
+                maxAngle = GetPropertyNode(
+                    so,
+                    root,
+                    "maxAngle",
+                    "maxAngleX"),
+                maxAngleX = GetPropertyNode(so, root, "maxAngleX"),
+                maxAngleZ = GetPropertyNode(so, root, "maxAngleZ"),
+                limitRotation = GetPropertyNode(
+                    so,
+                    root,
+                    "limitRotation",
+                    "limitRotationOffset"),
+
+                radius = GetPropertyNode(so, root, "radius"),
+                allowCollision = GetPropertyNode(so, root, "allowCollision"),
+                colliders = GetPropertyNode(so, root, "colliders"),
+
+                stretchMotion = GetPropertyNode(so, root, "stretchMotion"),
+                maxStretch = GetPropertyNode(so, root, "maxStretch"),
+                maxSquish = GetPropertyNode(so, root, "maxSquish"),
+
+                allowGrabbing = GetPropertyNode(so, root, "allowGrabbing"),
+                allowPosing = GetPropertyNode(so, root, "allowPosing"),
+                grabMovement = GetPropertyNode(so, root, "grabMovement"),
+                snapToHand = GetPropertyNode(so, root, "snapToHand"),
+
+                parameter = GetPropertyNode(
+                    so,
+                    root,
+                    "parameter",
+                    "parameterName"),
+                isAnimated = GetPropertyNode(
+                    so,
+                    root,
+                    "isAnimated",
+                    "IsAnimated"),
+
+                rawProperties = BuildSerializedPropertyTree(so, root)
+            };
+        }
+
+        /// <summary>
+        /// VRC PhysBone Colliderの主要設定を比較用形式へ変換
+        /// </summary>
+        /// <param name="component">解析対象のVRC PhysBone Collider Component</param>
+        /// <param name="root">Hierarchy Pathの基準となるルートTransform</param>
+        /// <returns>Root Transform、Shape、Radius、Height、Positionなどを含むPhysBone Collider情報</returns>
+        private static VRCPhysBoneColliderReport BuildVRCPhysBoneColliderReport(
+            Component component,
+            Transform root)
+        {
+            var so = new SerializedObject(component);
+
+            return new VRCPhysBoneColliderReport
+            {
+                gameObjectPath = GetHierarchyPath(component.transform, root),
+                type = component.GetType().FullName,
+
+                rootTransform = GetPropertyNode(so, root, "rootTransform"),
+                shapeType = GetPropertyNode(
+                    so,
+                    root,
+                    "shapeType",
+                    "shape"),
+                radius = GetPropertyNode(so, root, "radius"),
+                height = GetPropertyNode(so, root, "height"),
+                position = GetPropertyNode(so, root, "position"),
+                rotation = GetPropertyNode(so, root, "rotation"),
+                insideBounds = GetPropertyNode(
+                    so,
+                    root,
+                    "insideBounds",
+                    "inside"),
+                bonesAsSphere = GetPropertyNode(
+                    so,
+                    root,
+                    "bonesAsSphere",
+                    "bonesAsSpheres"),
+                globalCollision = GetPropertyNode(
+                    so,
+                    root,
+                    "globalCollision",
+                    "isGlobal"),
+
+                rawProperties = BuildSerializedPropertyTree(so, root)
+            };
+        }
+
+        /// <summary>
+        /// 候補名に一致するSerializedPropertyを比較用Nodeとして取得
+        /// </summary>
+        /// <param name="serializedObject">検索対象のSerializedObject</param>
+        /// <param name="root">ObjectReferenceをHierarchy Pathへ変換する基準Transform</param>
+        /// <param name="names">検索する候補Property名</param>
+        /// <returns>最初に見つかったSerializedPropertyのNode。見つからない場合はnull</returns>
+        private static SerializedPropertyNode GetPropertyNode(
+            SerializedObject serializedObject,
+            Transform root,
+            params string[] names)
+        {
+            var property = FindFirstProperty(serializedObject, names);
+            return property != null
+                ? BuildSerializedPropertyNodeWithChildren(property, root)
+                : null;
         }
 
         /// <summary>
@@ -2493,10 +2648,263 @@ namespace Natade.AvatarReport
     public class VRChatReport
     {
         /// <summary>
-        /// avatar Descriptorsの比較用値
+        /// VRC Avatar Descriptorの専用解析結果
         /// </summary>
         public List<VRCAvatarDescriptorReport> avatarDescriptors =
             new List<VRCAvatarDescriptorReport>();
+
+        /// <summary>
+        /// VRC PhysBoneの専用解析結果
+        /// </summary>
+        public List<VRCPhysBoneReport> physBones =
+            new List<VRCPhysBoneReport>();
+
+        /// <summary>
+        /// VRC PhysBone Colliderの専用解析結果
+        /// </summary>
+        public List<VRCPhysBoneColliderReport> physBoneColliders =
+            new List<VRCPhysBoneColliderReport>();
+    }
+
+    /// <summary>
+    /// VRC PhysBoneの主要設定
+    /// </summary>
+    [Serializable]
+    public class VRCPhysBoneReport
+    {
+        /// <summary>
+        /// VRC PhysBoneが存在するHierarchy Path
+        /// </summary>
+        public string gameObjectPath;
+
+        /// <summary>
+        /// Componentの完全型名
+        /// </summary>
+        public string type;
+
+        /// <summary>
+        /// PhysBoneのRoot Transform
+        /// </summary>
+        public SerializedPropertyNode rootTransform;
+
+        /// <summary>
+        /// 物理演算から除外するTransform一覧
+        /// </summary>
+        public SerializedPropertyNode ignoreTransforms;
+
+        /// <summary>
+        /// 末端に追加する仮想BoneのPosition
+        /// </summary>
+        public SerializedPropertyNode endpointPosition;
+
+        /// <summary>
+        /// 複数Child Boneを持つ場合の処理方式
+        /// </summary>
+        public SerializedPropertyNode multiChildType;
+
+        /// <summary>
+        /// PhysBoneの物理計算方式
+        /// </summary>
+        public SerializedPropertyNode integrationType;
+
+        /// <summary>
+        /// 初期姿勢へ戻す力
+        /// </summary>
+        public SerializedPropertyNode pull;
+
+        /// <summary>
+        /// 揺れ戻りの強さ
+        /// </summary>
+        public SerializedPropertyNode spring;
+
+        /// <summary>
+        /// 慣性の強さ
+        /// </summary>
+        public SerializedPropertyNode momentum;
+
+        /// <summary>
+        /// 直前の向きを維持する強さ
+        /// </summary>
+        public SerializedPropertyNode stiffness;
+
+        /// <summary>
+        /// Gravity設定
+        /// </summary>
+        public SerializedPropertyNode gravity;
+
+        /// <summary>
+        /// 静止時のGravity減衰設定
+        /// </summary>
+        public SerializedPropertyNode gravityFalloff;
+
+        /// <summary>
+        /// Immobileの判定方式
+        /// </summary>
+        public SerializedPropertyNode immobileType;
+
+        /// <summary>
+        /// Avatar移動に対するPhysBoneの追従しにくさ
+        /// </summary>
+        public SerializedPropertyNode immobile;
+
+        /// <summary>
+        /// Boneの可動範囲制限方式
+        /// </summary>
+        public SerializedPropertyNode limitType;
+
+        /// <summary>
+        /// 可動角度の主要設定
+        /// </summary>
+        public SerializedPropertyNode maxAngle;
+
+        /// <summary>
+        /// X方向の可動角度設定
+        /// </summary>
+        public SerializedPropertyNode maxAngleX;
+
+        /// <summary>
+        /// Z方向の可動角度設定
+        /// </summary>
+        public SerializedPropertyNode maxAngleZ;
+
+        /// <summary>
+        /// Limitの回転方向設定
+        /// </summary>
+        public SerializedPropertyNode limitRotation;
+
+        /// <summary>
+        /// Bone周辺のCollision Radius
+        /// </summary>
+        public SerializedPropertyNode radius;
+
+        /// <summary>
+        /// Global ColliderとのCollision許可設定
+        /// </summary>
+        public SerializedPropertyNode allowCollision;
+
+        /// <summary>
+        /// このPhysBoneが参照するPhysBone Collider一覧
+        /// </summary>
+        public SerializedPropertyNode colliders;
+
+        /// <summary>
+        /// MotionによるBone伸縮量
+        /// </summary>
+        public SerializedPropertyNode stretchMotion;
+
+        /// <summary>
+        /// 最大伸長量
+        /// </summary>
+        public SerializedPropertyNode maxStretch;
+
+        /// <summary>
+        /// 最大収縮量
+        /// </summary>
+        public SerializedPropertyNode maxSquish;
+
+        /// <summary>
+        /// Grab許可設定
+        /// </summary>
+        public SerializedPropertyNode allowGrabbing;
+
+        /// <summary>
+        /// Pose固定許可設定
+        /// </summary>
+        public SerializedPropertyNode allowPosing;
+
+        /// <summary>
+        /// Grab時の追従設定
+        /// </summary>
+        public SerializedPropertyNode grabMovement;
+
+        /// <summary>
+        /// Grab時にHandへSnapする設定
+        /// </summary>
+        public SerializedPropertyNode snapToHand;
+
+        /// <summary>
+        /// PhysBoneが生成するAnimator ParameterのPrefix
+        /// </summary>
+        public SerializedPropertyNode parameter;
+
+        /// <summary>
+        /// AnimationによってTransformが動くことを示す設定
+        /// </summary>
+        public SerializedPropertyNode isAnimated;
+
+        /// <summary>
+        /// VRC PhysBone内部の全Visible SerializedProperty
+        /// </summary>
+        public List<SerializedPropertyNode> rawProperties =
+            new List<SerializedPropertyNode>();
+    }
+
+    /// <summary>
+    /// VRC PhysBone Colliderの主要設定
+    /// </summary>
+    [Serializable]
+    public class VRCPhysBoneColliderReport
+    {
+        /// <summary>
+        /// VRC PhysBone Colliderが存在するHierarchy Path
+        /// </summary>
+        public string gameObjectPath;
+
+        /// <summary>
+        /// Componentの完全型名
+        /// </summary>
+        public string type;
+
+        /// <summary>
+        /// Colliderが追従するRoot Transform
+        /// </summary>
+        public SerializedPropertyNode rootTransform;
+
+        /// <summary>
+        /// Collider Shapeの種類
+        /// </summary>
+        public SerializedPropertyNode shapeType;
+
+        /// <summary>
+        /// ColliderのRadius
+        /// </summary>
+        public SerializedPropertyNode radius;
+
+        /// <summary>
+        /// Capsule ColliderのHeight
+        /// </summary>
+        public SerializedPropertyNode height;
+
+        /// <summary>
+        /// Root TransformからのPosition Offset
+        /// </summary>
+        public SerializedPropertyNode position;
+
+        /// <summary>
+        /// Root TransformからのRotation Offset
+        /// </summary>
+        public SerializedPropertyNode rotation;
+
+        /// <summary>
+        /// BoneをCollider内部に保持する設定
+        /// </summary>
+        public SerializedPropertyNode insideBounds;
+
+        /// <summary>
+        /// Bone CollisionをSphereとして扱う設定
+        /// </summary>
+        public SerializedPropertyNode bonesAsSphere;
+
+        /// <summary>
+        /// Global Colliderとして扱う設定
+        /// </summary>
+        public SerializedPropertyNode globalCollision;
+
+        /// <summary>
+        /// VRC PhysBone Collider内部の全Visible SerializedProperty
+        /// </summary>
+        public List<SerializedPropertyNode> rawProperties =
+            new List<SerializedPropertyNode>();
     }
 
     /// <summary>

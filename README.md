@@ -226,13 +226,10 @@ Avatar Descriptorに設定されているView Positionを出力します。
     - ih
     - oh
     - ou
-
 - Jaw Bone
 - Jaw Open
 - Jaw Closed
 - Mouth Open BlendShape
-
-VRM 0.x / VRM 1.0 / XAvatarなど、変換方法によって生成されるLip Sync設定に違いがあるか確認できます。
 
 #### Eye Look
 
@@ -241,8 +238,6 @@ VRM 0.x / VRM 1.0 / XAvatarなど、変換方法によって生成されるLip S
 - Eye Transform
 - Rotation State
 - Eyelid関連設定
-
-内部設定はSerializedPropertyを再帰的に取得します。
 
 #### Playable Layers
 
@@ -257,38 +252,86 @@ VRM 0.x / VRM 1.0 / XAvatarなど、変換方法によって生成されるLip S
 - IK PoseなどのSpecial Layers
 - Default状態
 - Animator Controller参照
-
-Animator Controllerが設定されている場合は、Controller内部についても以下を出力します。
-
-- Parameters
-- Layers
-- States
-- Motion
-- Write Defaults
-- Avatar Mask
+- Controller内部のParameters / Layers / States / Motion / Write Defaults / Avatar Mask
 
 #### Expressions
 
 - Customize状態
 - Expressions Menu参照
 - Expression Parameters参照
-
-Expressions Menu / Expression Parametersについては、Assetへの参照だけでなく内部のSerializedPropertyも再帰的に出力します。
+- Menu / Parameters Asset内部のSerializedProperty
 
 #### Raw SerializedProperty
 
-VRC Avatar DescriptorのSerializedPropertyを、配列や入れ子を含めて階層構造を保ったまま出力します。
+VRC Avatar Descriptor内部のVisible SerializedPropertyを、配列や入れ子を含めて階層構造を保ったまま出力します。
 
-専用セクションで取得していない設定が存在する場合も、Raw SerializedPropertyから確認できます。
+### VRC PhysBone
+
+`vrchat.physBones` に各VRC PhysBoneを専用形式で出力します。
+
+主な出力項目:
+
+- ComponentのHierarchy Path
+- Root Transform
+- Ignore Transforms
+- Endpoint Position
+- Multi-Child Type
+- Integration Type
+- Pull
+- Spring
+- Momentum
+- Stiffness
+- Gravity
+- Gravity Falloff
+- Immobile Type
+- Immobile
+- Limit Type
+- Max Angle関連
+- Limit Rotation
+- Radius
+- Allow Collision
+- Collider一覧
+- Stretch Motion
+- Max Stretch
+- Max Squish
+- Allow Grabbing
+- Allow Posing
+- Grab Movement
+- Snap To Hand
+- Parameter
+- Is Animated
+
+各設定は `SerializedPropertyNode` として出力するため、値だけでなくProperty型やObjectReference、配列の子要素も確認できます。
+
+また、`rawProperties` にVRC PhysBone内部のVisible SerializedPropertyをすべて再帰的に出力します。
+
+SDKのバージョンによって新しい設定が追加された場合や、専用項目として認識できないPropertyがある場合も `rawProperties` から確認できます。
+
+### VRC PhysBone Collider
+
+`vrchat.physBoneColliders` に各VRC PhysBone Colliderを専用形式で出力します。
+
+主な出力項目:
+
+- ComponentのHierarchy Path
+- Root Transform
+- Shape Type
+- Radius
+- Height
+- Position
+- Rotation
+- Inside Bounds
+- Bones As Sphere
+- Global Collision
+
+PhysBone Colliderについても `rawProperties` にVisible SerializedPropertyをすべて再帰的に出力します。
 
 ### その他のComponent
 
 Transform / Renderer / Animatorなど専用セクションで扱うものを除き、ComponentのSerializedPropertyを汎用的に出力します。
 
-そのため、プロジェクト内に存在する以下のようなVRChat Componentについても、SDKの型へ直接依存せず設定値を比較できます。
+そのため、以下のようなComponentについてもSDKの型へ直接依存せず設定値を比較できます。
 
-- VRC PhysBone
-- VRC PhysBone Collider
 - VRC Contact Sender
 - VRC Contact Receiver
 - VRC Constraints
@@ -317,8 +360,6 @@ VRM 0.x / VRM 1.0 / XAvatarなどを比較する際に、UniVRM、VRChat SDK、C
 
 同じアバターを異なる方法でVRChat向けに変換し、それぞれのJSONを比較することで、変換方法による違いを調査できます。
 
-たとえば以下のような比較を想定しています。
-
 ```text
 VRoid Studio
 ├─ VRM 0.x → VRM Converter for VRChat
@@ -344,12 +385,14 @@ VRoid Studio
 - Playable Layers
 - Expressions
 - VRC PhysBone
+- VRC PhysBone Collider
 - その他VRChat Component
 
 ## 注意
 
 - JSONは比較・調査向けで、Unity Objectを完全に復元するための形式ではありません。
 - SerializedPropertyの内部表現はComponentやSDKのバージョンによって変化する場合があります。
+- PhysBone / PhysBone Colliderの専用項目は既知のProperty名を検索して出力し、すべての設定を `rawProperties` にも保持します。
 - MaterialのShader PropertyはShaderが公開しているPropertyを列挙します。
 - BlendShape Frame解析は頂点数に比例して処理量が増えます。BlendShapeが非常に多いモデルでは出力に時間がかかる場合があります。
 - 出力結果にはConverterやSDKが自動生成した設定も含まれるため、変換方式を比較する場合はUnityやPackageのバージョンなど、できるだけ条件を揃えることを推奨します。
