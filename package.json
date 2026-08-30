@@ -1,0 +1,11 @@
+{
+  "name": "net.natade.vrchat-avatar-report-exporter",
+  "version": "1.2.0",
+  "displayName": "VRChat Avatar Report Exporter",
+  "description": "Exports VRChat avatar information to JSON for inspection and comparison.",
+  "unity": "2022.3",
+  "author": {
+    "name": "natade-jp",
+    "url": "https://github.com/natade-jp"
+  }
+}
